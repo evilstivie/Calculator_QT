@@ -1,3 +1,6 @@
+#ifndef _CALCALGO_H
+#define _CALCALGO_H
+
 #include <string>
 #include "stack.h"
 
@@ -182,3 +185,5 @@ int calc_polish(const std::string &post) {
 
   return st.top();
 }
+
+#endif // algo.h
