@@ -1,3 +1,6 @@
+#ifndef _CALCSMATH_H
+#define _CALCSMATH_H
+
 const double EPS = 1e-8;
 const double PI = 3.14159265358979323846;
 
@@ -42,3 +45,5 @@ double log(const double x) {
 double log(double a, double x) {
   return log(x) / log(a);
 }
+
+#endif // smath.h
