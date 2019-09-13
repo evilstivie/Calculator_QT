@@ -35,26 +35,43 @@ int get_prior(char op) {
   }
 }
 
-double read_double (const std::string &str, int &pos) {
+double read_single (const std::string &str, int &pos) {
   double d = 0;
   char c = str[pos];
+
+  bool sign = false;
+  if (c == '-' || c == '+') {
+    ++pos;
+    sign = c == '-';
+    c = str[pos];
+  }
+
   while (pos < str.size() && isdigit(c)) {
     d = d * 10.0 + (c - '0');
     c = str[++pos];
   }
+  return (sign ? -1.0 : 1.0) * d;
+}
 
+double read_double (const std::string &str, int &pos) {
+  double d = read_single(str, pos);
   if (pos >= str.size())
     return d;
-  
-  if (str[pos] != '.')
+
+  if (str[pos] == 'e') {
+    ++pos;
+    double man = read_single(str, pos);
+    return d * pow(10, man);
+  } else if (str[pos] != '.') {
     return d;
+  }
 
   ++pos;
   if (pos >= str.size()) {
     return d;
   }
 
-  c = str[pos];
+  char c = str[pos];
   double ten = 10.0;
   while (pos < str.size() && isdigit(c)) {
     d += double(c - '0') / ten;
