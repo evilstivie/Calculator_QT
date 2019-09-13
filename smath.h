@@ -8,6 +8,24 @@ double fabs(double x) {
   return *(((int*)&x) + 1) &= 0x7fffffff;
 }
 
+double exp (double t) {
+  double value = 1.0, before = value, term = 1.0, diff = 0, c = 0;
+  unsigned it = 0, n = 1;
+  do {
+    it++;
+    term *= t / n;
+    double y = term - c;
+    double p = value + y;
+    c = (p - value) - y;
+    value = p;
+    n++;
+    double after = value;
+    diff = (before - after) / before;
+    before = after;
+  } while (fabs(diff) >= EPS);
+  return value;
+}
+
 double cos(const double x) {
   double val = 1.0, temp = 1.0;
   unsigned step = 1;
@@ -44,6 +62,10 @@ double log(const double x) {
 
 double log(double a, double x) {
   return log(x) / log(a);
+}
+
+double pow (double a, double p) {
+  return exp(log(a) * p);
 }
 
 #endif // smath.h
