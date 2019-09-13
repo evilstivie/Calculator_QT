@@ -3,26 +3,26 @@
 
 #include <string>
 #include "stack.h"
+#include "smath.h"
 
-const char OPERATIONS[5] = {
-  '+', '-', '*', '/', '^'
-};
+const char OPERATIONS[5] = {'+', '-', '*', '/', '^'};
 
 bool isdigit(char c) {
   return '0' <= c && c <= '9';
 }
 
-bool iskey(char c) {
-    for (char c : OPERATIONS)
-        if (c == c)
-            return true;
+bool iskey(char cur) {
+  for (char c : OPERATIONS)
+    if (c == cur)
+      return true;
+  return false;
 }
 
 bool isspace(char c) {
   return c == ' ';
 }
 
-int get_prior (char op) {
+int get_prior(char op) {
   switch (op) {
     case '+':
     case '-':
@@ -35,47 +35,40 @@ int get_prior (char op) {
   }
 }
 
-int binpow (int a, int n) {
-	int res = 1;
-	while (n) {
-		if (n & 1)
-			res *= a;
-		a *= a;
-		n >>= 1;
-	}
-	return res;
-}
-
-void eval_single(stack<int> &st, char op) {
-  int rhs = st.top();
-  st.pop();
-  int lhs = st.top();
-  st.pop();
-
-  switch (op) {
-    case '+':
-      st.push(lhs + rhs);
-      break;
-    case '-':
-      st.push(lhs - rhs);
-      break;
-    case '*':
-      st.push(lhs * rhs);
-      break;
-    case '/':
-      st.push(lhs / rhs);
-      break;
-    case '^':
-      st.push(binpow(lhs, rhs));
-      break;
+double read_double (const std::string &str, int &pos) {
+  double d = 0;
+  char c = str[pos];
+  while (pos < str.size() && isdigit(c)) {
+    d = d * 10.0 + (c - '0');
+    c = str[++pos];
   }
+
+  if (pos >= str.size())
+    return d;
+  
+  if (str[pos] != '.')
+    return d;
+
+  ++pos;
+  if (pos >= str.size()) {
+    return d;
+  }
+
+  c = str[pos];
+  double ten = 10.0;
+  while (pos < str.size() && isdigit(c)) {
+    d += double(c - '0') / ten;
+    ten *= 10;
+    c = str[++pos];
+  }
+
+  return d;
 }
 
-void to_polish(const std::string& inp, std::string &outp) {
+void to_polish(const std::string& inp, std::string& outp) {
   int intro = 0, outro = 0;
-  stack<int> st;
-  char prev = inp[intro];
-  
+  stack<char> st;
+
   do {
     char c = inp[intro];
     switch (c) {
@@ -84,25 +77,27 @@ void to_polish(const std::string& inp, std::string &outp) {
         while (!st.empty()) {
           char op = st.top();
           if (op != '(') {
-            outp[outro++] = op;
+            outp = outp + op, outro++;
             st.pop();
-          } else break;
+          } else
+            break;
         }
         st.push(c);
         break;
-      
+
       case '*':
       case '/':
         while (!st.empty()) {
           char op = st.top();
           if (op == '^' || op == '*' || op == '/') {
-            outp[outro++] = op;
+            outp = outp + op, outro++;
             st.pop();
-          } else break;
+          } else
+            break;
         }
         st.push(c);
         break;
-      
+
       case '(':
         st.push(c);
         break;
@@ -114,7 +109,7 @@ void to_polish(const std::string& inp, std::string &outp) {
           if (op == '(')
             break;
           else
-            outp[outro++] = op;
+            outp = outp + op, outro++;
         }
         break;
 
@@ -123,51 +118,56 @@ void to_polish(const std::string& inp, std::string &outp) {
         break;
 
       default:
-        outp[outro++] = c;
+        if (isdigit(c)) {
+          std::string str = std::to_string(read_double(inp, intro));
+          --intro;
+          outp = outp + str + ' ';
+          outro += (str + ' ').size();
+        } else {
+          outp = outp + c;
+          outro++;
+        }
         break;
     }
 
     intro++;
-    if (!isdigit(c) && isdigit(prev)) {
-      outp[outro++] = ' ';
-    }
 
-    prev = c;
-
-  } while (inp[intro] != 0);
+  } while (intro < inp.size());
 
   while (!st.empty()) {
-    outp[outro++] = st.top();
+    outp = outp + st.top();
+    outro++;
     st.pop();
   }
 
   outp[outro] = 0;
 }
 
-int calc_polish(const std::string &post) {
-  stack<int> st;
-  st.push(0);
-  int num = 0;
+double calc_polish(const std::string& post) {
+  stack<double> st;
+  double num = 0;
 
-  for (char c : post) {
+  for (int i = 0; i < post.size(); i++) {
+    char c = post[i];
+
+    if (c == ' ')
+      continue;
+    if (c == 0)
+      break;
+
     if (isdigit(c)) {
-      num = num * 10 + (c - '0');
-      continue;
-    } else if (num != 0) {
+      num = read_double(post, i);
       st.push(num);
-      num = 0;
-    }
-
-    if (c == ' ' || c == 0) {
+      --i;
       num = 0;
       continue;
     }
 
-    int y = st.top();
+    double y = st.top();
     st.pop();
-    int x = st.top();
+    double x = st.top();
     st.pop();
-    int z;
+    double z;
 
     if (c == '+')
       z = x + y;
@@ -176,14 +176,15 @@ int calc_polish(const std::string &post) {
     else if (c == '*')
       z = x * y;
     else if (c == '/')
-      z = x * y;
-    else if (c == '^')
-      z = binpow(x, y);
-
+      z = x / y;
+    else if (c == '^') {
+      z = pow(x, y);
+    }
+	  
     st.push(z);
   }
 
   return st.top();
 }
 
-#endif // algo.h
+#endif  // algo.h
