@@ -1,5 +1,6 @@
 #ifndef _CALCSMATH_H
 #define _CALCSMATH_H
+#include <iostream>
 
 const double EPS = 1e-8;
 const double PI = 3.14159265358979323846;
@@ -65,6 +66,10 @@ double log(double a, double x) {
 }
 
 double pow (double a, double p) {
+  if (fabs(p) <= EPS)
+    return 1.0;
+  if (fabs(p) - 1.0 <= EPS)
+    return a;
   return exp(log(a) * p);
 }
 
