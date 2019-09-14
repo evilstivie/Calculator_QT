@@ -35,9 +35,11 @@ int get_prior(char op) {
   }
 }
 
+
 double read_single (const std::string &str, int &pos) {
   double d = 0;
   char c = str[pos];
+  int start = pos;
 
   bool sign = false;
   if (c == '-' || c == '+') {
@@ -46,37 +48,75 @@ double read_single (const std::string &str, int &pos) {
     c = str[pos];
   }
 
+  int prev = pos;
   while (pos < str.size() && isdigit(c)) {
     d = d * 10.0 + (c - '0');
     c = str[++pos];
   }
+  int post = pos;
+  if ((str[start] == '-' || str[start] == '+') && post == prev) {
+    pos = start;
+    return 0;
+  }
+
   return (sign ? -1.0 : 1.0) * d;
 }
 
 double read_double (const std::string &str, int &pos) {
+  int prev = pos;
   double d = read_single(str, pos);
-  if (pos >= str.size())
+  if (pos >= str.size()) {
     return d;
+  }
+  int now = pos;
 
-  if (str[pos] == 'e') {
+  if (now == prev) {
+    pos = 0;
+    return 0;
+  }
+
+  if (str[pos] == 'e' || str[pos] == 'E') {
     ++pos;
+    int prev = pos;
     double man = read_single(str, pos);
+
+    int now = pos;
+    if (now - prev == 0) {
+      pos = 0;
+      return 0;
+    }
+
     return d * pow(10, man);
   } else if (str[pos] != '.') {
-    return d;
+    pos = 0;
+    return 0;
   }
 
   ++pos;
   if (pos >= str.size()) {
-    return d;
+    pos = 0;
+    return 0;
   }
-
+  
+  int pprev = pos;
   char c = str[pos];
   double ten = 10.0;
   while (pos < str.size() && isdigit(c)) {
     d += double(c - '0') / ten;
     ten *= 10;
     c = str[++pos];
+  }
+
+  int nnow = pos;
+  if (pprev == nnow) {
+    pos = 0;
+    return 0;
+  }
+
+  if (pos < str.size() - 1 && (str[pos] == 'e' || str[pos] == 'E')) {
+    ++pos;
+    double v = read_single(str, pos);
+    return d * pow(10, v);
   }
 
   return d;
