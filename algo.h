@@ -56,7 +56,7 @@ double read_single (const std::string &str, int &pos) {
   int post = pos;
   if ((str[start] == '-' || str[start] == '+') && post == prev) {
     pos = start;
-    return 0;
+    return INF;
   }
 
   return (sign ? -1.0 : 1.0) * d;
@@ -72,7 +72,7 @@ double read_double (const std::string &str, int &pos) {
 
   if (now == prev) {
     pos = 0;
-    return 0;
+    return INF;
   }
 
   if (str[pos] == 'e' || str[pos] == 'E') {
@@ -83,19 +83,18 @@ double read_double (const std::string &str, int &pos) {
     int now = pos;
     if (now - prev == 0) {
       pos = 0;
-      return 0;
+      return INF;
     }
 
     return d * pow(10, man);
   } else if (str[pos] != '.') {
-    pos = 0;
-    return 0;
+    return d;
   }
 
   ++pos;
   if (pos >= str.size()) {
     pos = 0;
-    return 0;
+    return INF;
   }
   
   int pprev = pos;
@@ -110,7 +109,7 @@ double read_double (const std::string &str, int &pos) {
   int nnow = pos;
   if (pprev == nnow) {
     pos = 0;
-    return 0;
+    return INF;
   }
 
   if (pos < str.size() - 1 && (str[pos] == 'e' || str[pos] == 'E')) {
@@ -180,9 +179,6 @@ void to_polish(const std::string& inp, std::string& outp) {
           --intro;
           outp = outp + str + ' ';
           outro += (str + ' ').size();
-        } else {
-          outp = outp + c;
-          outro++;
         }
         break;
     }
@@ -237,7 +233,7 @@ double calc_polish(const std::string& post) {
     else if (c == '^') {
       z = pow(x, y);
     }
-	  
+
     st.push(z);
   }
 
