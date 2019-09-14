@@ -155,6 +155,7 @@ void to_polish(const std::string& inp, std::string& outp) {
         break;
 
       case '(':
+      case '[':
         st.push(c);
         break;
 
@@ -163,6 +164,17 @@ void to_polish(const std::string& inp, std::string& outp) {
           char op = st.top();
           st.pop();
           if (op == '(')
+            break;
+          else
+            outp = outp + op, outro++;
+        }
+        break;
+
+      case ']':
+        while (!st.empty()) {
+          char op = st.top();
+          st.pop();
+          if (op == '[')
             break;
           else
             outp = outp + op, outro++;
