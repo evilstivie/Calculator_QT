@@ -1,36 +1,39 @@
 #include "algo.h"
+#include "hashmap.h"
 #include "smath.h"
 #include <iostream>
 #include <string>
 #include <iomanip>
+#include <cassert>
 
-int main () {
+void test_main() {
   std::string s;
   std::getline(std::cin, s);
+  
+  HashMap<std::string, double, string_hash> vars;
+  vars.put("x", 100);
 
-  std::string lol;
-  for (int i = 0; i < s.size(); i++) {
-    char c = s[i];
-    bool prev = i == 0 ? false : (isdigit(s[i - 1]) || s[i - 1] == ')');
-    bool next = i == s.size() - 1 ? false : (isdigit(s[i + 1]) || s[i + 1] == ')');
-    if (!prev && next && (c == '+' || c == '-')) {
-      ++i;
-      double d = read_double(s, i);
-      --i;
-      if (c == '+')
-        lol += std::to_string(d) + "+0";
-      if (c == '-')
-        lol += "0-" + std::to_string(d);
-    } else 
-      lol += c;
-  }
+  trim_unary(s, vars);  // replace unary plus and minus with 0 +- expr
 
-  std::cout << "Pre-processed string = " << lol << std::endl;
+  std::cout << "Pre-processed string = " << s << std::endl;
 
   std::string polish;
-  to_polish(lol, polish);
+  to_polish(s, polish, vars);
   
   std::cout << "Polish notation = " << polish << std::endl;
-  std::cout << "Eval = " << std::fixed << std::setprecision(2) << calc_polish(polish) << std::endl;
+  std::cout << "Result = " << std::fixed << std::setprecision(2) << calc_polish(polish) << std::endl;
+}
+
+void test_hashmap() {
+  HashMap<std::string, double, string_hash> map;
+  map.put("e", EULER);
+  map.put("pi", PI);
+
+  std::cout << map.get("e") << std::endl;
+  std::cout << map.get("pi") << std::endl;
+}
+
+int main () {
+  test_main();
   return 0;
 }
