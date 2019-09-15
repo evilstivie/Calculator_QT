@@ -1,6 +1,7 @@
-#include <iostream>
 #ifndef _CALCSTACK_H
 #define _CALCSTACK_H
+#include <iostream>
+#include <cassert>
 
 template <typename T>
 class stack {
@@ -16,6 +17,7 @@ class stack {
 public:
   stack() {
     head = new node();
+    sz = 0;
   }
 
   void push(const T& t) {
