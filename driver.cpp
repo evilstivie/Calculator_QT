@@ -11,7 +11,9 @@ void test_main() {
   std::getline(std::cin, s);
   
   HashMap<std::string, double, string_hash> vars;
-  vars.put("x", 100);
+  vars.put("e", EULER);
+  vars.put("pi", PI);
+  vars.put("x", 1.0);
 
   trim_unary(s, vars);  // replace unary plus and minus with 0 +- expr
 
