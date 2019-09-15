@@ -2,8 +2,9 @@
 #define _CALCALGO_H
 
 #include <string>
-#include "stack.h"
 #include "smath.h"
+#include "stack.h"
+#include "hashmap.h"
 
 const char OPERATIONS[5] = {'+', '-', '*', '/', '^'};
 
@@ -22,6 +23,10 @@ bool isspace(char c) {
   return c == ' ';
 }
 
+bool isname(char c) {
+  return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z');
+}
+
 int get_prior(char op) {
   switch (op) {
     case '+':
@@ -35,8 +40,7 @@ int get_prior(char op) {
   }
 }
 
-
-double read_single (const std::string &str, int &pos) {
+double read_single(const std::string& str, int& pos) {
   double d = 0;
   char c = str[pos];
   int start = pos;
@@ -62,7 +66,7 @@ double read_single (const std::string &str, int &pos) {
   return (sign ? -1.0 : 1.0) * d;
 }
 
-double read_double (const std::string &str, int &pos) {
+double read_double(const std::string& str, int& pos) {
   int prev = pos;
   double d = read_single(str, pos);
   if (pos >= str.size()) {
@@ -96,7 +100,7 @@ double read_double (const std::string &str, int &pos) {
     pos = 0;
     return INF;
   }
-  
+
   int pprev = pos;
   char c = str[pos];
   double ten = 10.0;
@@ -121,7 +125,58 @@ double read_double (const std::string &str, int &pos) {
   return d;
 }
 
-void to_polish(const std::string& inp, std::string& outp) {
+std::string get_word(const std::string &s, int &pos) {
+  std::string res;
+  while (pos < s.size()) {
+    char c = s[pos];
+    if (!isname(c) && !isdigit(c))
+      break;
+    res += c;
+    pos++;
+  }
+  return res;
+}
+
+void trim_unary(std::string& s,
+                HashMap<std::string, double, string_hash>& vars) {
+  std::string ans;
+  for (int i = 0; i < s.size(); i++) {
+    char c = s[i];
+    bool prev = i == 0 ? false : (!iskey(s[i - 1]) || s[i - 1] == ')');
+    bool next =
+        i == s.size() - 1 ? false : (!iskey(s[i + 1]) || s[i + 1] == '(');
+    if (!prev && next && (c == '+' || c == '-')) {
+      std::string str;
+      ++i;
+
+      char end = 0;
+      if (isdigit(s[i])) {
+        std::cout << s[i] << " is digit" << std::endl;
+        // number
+        str = std::to_string(read_double(s, i));
+        --i;
+      } else if (isname(s[i])) {
+        std::cout << s[i] << " is name" << std::endl;
+        // variable
+        std::string name = get_word(s, i);
+        str = std::to_string(vars.get(name));
+        --i;
+      } else {
+        --i;
+      }
+
+      if (c == '+')
+        ans += str + "+0";
+      if (c == '-')
+        ans += "0-" + str;
+    } else
+      ans += c;
+  }
+
+  s = ans;
+}
+
+void to_polish(const std::string& inp, std::string& outp, HashMap<std::string, double, string_hash> &vars) {
   int intro = 0, outro = 0;
   stack<char> st;
 
@@ -186,12 +241,18 @@ void to_polish(const std::string& inp, std::string& outp) {
         break;
 
       default:
+        std::string str;
         if (isdigit(c)) {
-          std::string str = std::to_string(read_double(inp, intro));
-          --intro;
-          outp = outp + str + ' ';
-          outro += (str + ' ').size();
+          // number
+          str = std::to_string(read_double(inp, intro));
+        } else {
+          // variable
+          str = std::to_string(vars.get(get_word(inp, intro)));
         }
+
+        --intro;
+        outp = outp + str + ' ';
+        outro += (str + ' ').size();
         break;
     }
 
