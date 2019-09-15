@@ -4,6 +4,8 @@
 
 const double EPS = 1e-8;
 const double PI = 3.14159265358979323846;
+const double EULER = 2.7182818284590452353602874713527;
+const double INF = 1e20;
 
 double fabs(double x) {
   return *(((int*)&x) + 1) &= 0x7fffffff;
@@ -66,10 +68,15 @@ double log(double a, double x) {
 }
 
 double pow (double a, double p) {
+  std::cout << "pow not stable " << a << "^" << p << std::endl;
+  if (fabs(a) <= EPS)
+    return 0.0;
   if (fabs(p) <= EPS)
     return 1.0;
   if (fabs(p) - 1.0 <= EPS)
     return a;
+  if (p < 0)
+    return 1 / pow(a, -p);
   return exp(log(a) * p);
 }
 
