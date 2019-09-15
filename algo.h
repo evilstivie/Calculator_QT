@@ -2,9 +2,9 @@
 #define _CALCALGO_H
 
 #include <string>
+#include "hashmap.h"
 #include "smath.h"
 #include "stack.h"
-#include "hashmap.h"
 
 const char OPERATIONS[5] = {'+', '-', '*', '/', '^'};
 
@@ -125,7 +125,7 @@ double read_double(const std::string& str, int& pos) {
   return d;
 }
 
-std::string get_word(const std::string &s, int &pos) {
+std::string get_word(const std::string& s, int& pos) {
   std::string res;
   while (pos < s.size()) {
     char c = s[pos];
@@ -142,33 +142,29 @@ void trim_unary(std::string& s,
   std::string ans;
   for (int i = 0; i < s.size(); i++) {
     char c = s[i];
-    bool prev = i == 0 ? false : (!iskey(s[i - 1]) || s[i - 1] == ')');
-    bool next =
-        i == s.size() - 1 ? false : (!iskey(s[i + 1]) || s[i + 1] == '(');
+    if (isspace(c))
+      continue;
+
+    bool prev = i == 0 ? false : isdigit(s[i - 1]) || s[i - 1] == ')';
+    bool next = i == s.size() - 1 ? false : isdigit(s[i + 1]) || s[i + 1] == '(';
+
     if (!prev && next && (c == '+' || c == '-')) {
       std::string str;
       ++i;
 
-      char end = 0;
       if (isdigit(s[i])) {
-        std::cout << s[i] << " is digit" << std::endl;
-        // number
-        str = std::to_string(read_double(s, i));
-        --i;
+        str = std::to_string(read_double(s, i));  // number
       } else if (isname(s[i])) {
-        std::cout << s[i] << " is name" << std::endl;
-        // variable
-        std::string name = get_word(s, i);
+        std::string name = get_word(s, i);  // variable
         str = std::to_string(vars.get(name));
-        --i;
-      } else {
-        --i;
       }
 
       if (c == '+')
         ans += str + "+0";
       if (c == '-')
         ans += "0-" + str;
+
+      i--;
     } else
       ans += c;
   }
@@ -176,8 +172,10 @@ void trim_unary(std::string& s,
   s = ans;
 }
 
-void to_polish(const std::string& inp, std::string& outp, HashMap<std::string, double, string_hash> &vars) {
-  int intro = 0, outro = 0;
+void to_polish(const std::string& inp,
+               std::string& outp,
+               HashMap<std::string, double, string_hash>& vars) {
+  int intro = 0;
   stack<char> st;
 
   do {
@@ -188,7 +186,7 @@ void to_polish(const std::string& inp, std::string& outp, HashMap<std::string, d
         while (!st.empty()) {
           char op = st.top();
           if (op != '(') {
-            outp = outp + op, outro++;
+            outp = outp + op;
             st.pop();
           } else
             break;
@@ -201,7 +199,7 @@ void to_polish(const std::string& inp, std::string& outp, HashMap<std::string, d
         while (!st.empty()) {
           char op = st.top();
           if (op == '^' || op == '*' || op == '/') {
-            outp = outp + op, outro++;
+            outp = outp + op;
             st.pop();
           } else
             break;
@@ -221,7 +219,7 @@ void to_polish(const std::string& inp, std::string& outp, HashMap<std::string, d
           if (op == '(')
             break;
           else
-            outp = outp + op, outro++;
+            outp = outp + op;
         }
         break;
 
@@ -232,7 +230,7 @@ void to_polish(const std::string& inp, std::string& outp, HashMap<std::string, d
           if (op == '[')
             break;
           else
-            outp = outp + op, outro++;
+            outp = outp + op;
         }
         break;
 
@@ -252,7 +250,6 @@ void to_polish(const std::string& inp, std::string& outp, HashMap<std::string, d
 
         --intro;
         outp = outp + str + ' ';
-        outro += (str + ' ').size();
         break;
     }
 
@@ -262,11 +259,8 @@ void to_polish(const std::string& inp, std::string& outp, HashMap<std::string, d
 
   while (!st.empty()) {
     outp = outp + st.top();
-    outro++;
     st.pop();
   }
-
-  outp[outro] = 0;
 }
 
 double calc_polish(const std::string& post) {
