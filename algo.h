@@ -1,10 +1,16 @@
 #ifndef _CALCALGO_H
 #define _CALCALGO_H
+#define _USE_MATH_DEFINES
 
 #include <string>
 #include "hashmap.h"
-#include "smath.h"
+#include "math.h"
 #include "stack.h"
+
+const double EPS = 1e-8;
+const double PI = 3.14159265358979323846;
+const double EULER = 2.7182818284590452353602874713527;
+const double INF = 1e20;
 
 const char OPERATIONS[5] = {'+', '-', '*', '/', '^'};
 
@@ -25,6 +31,14 @@ bool isspace(char c) {
 
 bool isname(char c) {
   return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z');
+}
+
+bool opening(char c) {
+  return c == '(' || c == '[';
+}
+
+bool closing(char c) {
+  return c == ')' || c == ']';
 }
 
 int get_prior(char op) {
@@ -105,10 +119,14 @@ double read_double(const std::string& str, int& pos) {
   char c = str[pos];
   double ten = 10.0;
   while (pos < str.size() && isdigit(c)) {
-    d += double(c - '0') / ten;
+    if (d < 0)
+      d -= double(c - '0') / ten;
+    else
+      d += double(c - '0') / ten;
     ten *= 10;
     c = str[++pos];
   }
+  std::cout << std::endl;
 
   int nnow = pos;
   if (pprev == nnow) {
@@ -126,6 +144,11 @@ double read_double(const std::string& str, int& pos) {
 }
 
 std::string get_word(const std::string& s, int& pos) {
+  if (isdigit(s[pos]))
+    return "";
+  if (pos != 0 && isdigit(s[pos - 1]) && (s[pos] == 'e' || s[pos] == 'E'))
+    return "";
+
   std::string res;
   while (pos < s.size()) {
     char c = s[pos];
@@ -134,37 +157,43 @@ std::string get_word(const std::string& s, int& pos) {
     res += c;
     pos++;
   }
+
   return res;
 }
 
 void trim_unary(std::string& s,
                 HashMap<std::string, double, string_hash>& vars) {
-  std::string ans;
+  std::string first;
   for (int i = 0; i < s.size(); i++) {
+    int before = i;
+    std::string name = get_word(s, i);
+    std::cout << "variable " << name << std::endl;
+    if (name == "cos") {
+      --i;
+      first += name;
+      continue;
+    }
+    if (i != before) {
+      std::cout << "lol " << std::to_string(vars.get(name)) << std::endl;
+      first += std::to_string(vars.get(name));
+      --i;
+    } else {
+      first += s[i];
+      std::cout << "adding raw " << s[i] << std::endl;
+    }
+  }
+  s = first;
+  s = "(" + s + ")";
+  std::string ans;
+  ans += '(';
+  for (int i = 1; i < s.size(); i++) {
     char c = s[i];
     if (isspace(c))
       continue;
 
-    bool prev = i == 0 ? false : isdigit(s[i - 1]) || s[i - 1] == ')';
-    bool next = i == s.size() - 1 ? false : isdigit(s[i + 1]) || s[i + 1] == '(';
-
-    if (!prev && next && (c == '+' || c == '-')) {
-      std::string str;
-      ++i;
-
-      if (isdigit(s[i])) {
-        str = std::to_string(read_double(s, i));  // number
-      } else if (isname(s[i])) {
-        std::string name = get_word(s, i);  // variable
-        str = std::to_string(vars.get(name));
-      }
-
-      if (c == '+')
-        ans += str + "+0";
-      if (c == '-')
-        ans += "0-" + str;
-
-      i--;
+    if ((opening(s[i - 1]) || iskey(s[i - 1])) && (c == '+' || c == '-')) {
+      ans += "0";
+      ans += c;
     } else
       ans += c;
   }
@@ -185,7 +214,7 @@ void to_polish(const std::string& inp,
       case '-':
         while (!st.empty()) {
           char op = st.top();
-          if (op != '(') {
+          if (!opening(op)) {
             outp = outp + op;
             st.pop();
           } else
@@ -219,7 +248,7 @@ void to_polish(const std::string& inp,
           if (op == '(')
             break;
           else
-            outp = outp + op;
+            outp += op;
         }
         break;
 
@@ -245,7 +274,8 @@ void to_polish(const std::string& inp,
           str = std::to_string(read_double(inp, intro));
         } else {
           // variable
-          str = std::to_string(vars.get(get_word(inp, intro)));
+          std::string name = get_word(inp, intro);
+          str = std::to_string(vars.get(name));
         }
 
         --intro;
@@ -285,6 +315,12 @@ double calc_polish(const std::string& post) {
 
     double y = st.top();
     st.pop();
+
+    if (c == '|') {
+      st.push(cos(y));
+      continue;
+    }
+
     double x = st.top();
     st.pop();
     double z;
