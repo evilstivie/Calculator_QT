@@ -2,9 +2,9 @@
 #define _CALCALGO_H
 #define _USE_MATH_DEFINES
 
+#include <math.h>
 #include <string>
 #include "hashmap.h"
-#include "math.h"
 #include "stack.h"
 
 const double EPS = 1e-8;
@@ -33,12 +33,12 @@ bool isname(char c) {
   return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z');
 }
 
-bool opening(char c) {
-  return c == '(' || c == '[';
+bool opening(std::string c) {
+  return c == "(" || c == "[";
 }
 
-bool closing(char c) {
-  return c == ')' || c == ']';
+bool closing(std::string c) {
+  return c == ")" || c == "]";
 }
 
 int get_prior(char op) {
@@ -126,7 +126,6 @@ double read_double(const std::string& str, int& pos) {
     ten *= 10;
     c = str[++pos];
   }
-  std::cout << std::endl;
 
   int nnow = pos;
   if (pprev == nnow) {
@@ -167,19 +166,22 @@ void trim_unary(std::string& s,
   for (int i = 0; i < s.size(); i++) {
     int before = i;
     std::string name = get_word(s, i);
-    std::cout << "variable " << name << std::endl;
-    if (name == "cos") {
-      --i;
-      first += name;
+    if (i == before) {
+      first += s[i];
       continue;
     }
+
+    if (!vars.contains(name)) {
+      first += name;
+      --i;
+      continue;
+    }
+
     if (i != before) {
-      std::cout << "lol " << std::to_string(vars.get(name)) << std::endl;
       first += std::to_string(vars.get(name));
       --i;
     } else {
       first += s[i];
-      std::cout << "adding raw " << s[i] << std::endl;
     }
   }
   s = first;
@@ -191,7 +193,7 @@ void trim_unary(std::string& s,
     if (isspace(c))
       continue;
 
-    if ((opening(s[i - 1]) || iskey(s[i - 1])) && (c == '+' || c == '-')) {
+    if ((opening("" + s[i - 1]) || iskey(s[i - 1])) && (c == '+' || c == '-')) {
       ans += "0";
       ans += c;
     } else
@@ -205,7 +207,7 @@ void to_polish(const std::string& inp,
                std::string& outp,
                HashMap<std::string, double, string_hash>& vars) {
   int intro = 0;
-  stack<char> st;
+  stack<std::string> st;
 
   do {
     char c = inp[intro];
@@ -213,58 +215,68 @@ void to_polish(const std::string& inp,
       case '+':
       case '-':
         while (!st.empty()) {
-          char op = st.top();
+          std::string op = st.top();
           if (!opening(op)) {
-            outp = outp + op;
+            outp = outp + op + " ";
             st.pop();
           } else
             break;
         }
-        st.push(c);
+
+        st.push(std::string(1, c));
         break;
 
       case '*':
       case '/':
         while (!st.empty()) {
-          char op = st.top();
-          if (op == '^' || op == '*' || op == '/') {
-            outp = outp + op;
+          std::string op = st.top();
+          if (op == "^" || op == "*" || op == "/" || op == "sin" ||
+              op == "cos") {
+            outp = outp + op + " ";
             st.pop();
           } else
             break;
         }
-        st.push(c);
+        st.push(std::string(1, c));
         break;
 
       case '(':
       case '[':
-        st.push(c);
+        st.push(std::string(1, c));
         break;
 
       case ')':
         while (!st.empty()) {
-          char op = st.top();
+		  std::string op = st.top();
           st.pop();
-          if (op == '(')
+          if (op == "(")
             break;
           else
-            outp += op;
+            outp += op + " ";
         }
         break;
 
       case ']':
         while (!st.empty()) {
-          char op = st.top();
+          std::string op = st.top();
           st.pop();
-          if (op == '[')
+          if (op == "[")
             break;
           else
-            outp = outp + op;
+            outp += op + " ";
         }
         break;
 
       case '^':
-        st.push(c);
+        while (!st.empty()) {
+          std::string op = st.top();
+          if (op == "sin" || op == "cos") {
+            outp = outp + op + " ";
+            st.pop();
+          } else
+            break;
+        }
+        st.push(std::string(1, c));
         break;
 
       default:
@@ -275,7 +287,21 @@ void to_polish(const std::string& inp,
         } else {
           // variable
           std::string name = get_word(inp, intro);
-          str = std::to_string(vars.get(name));
+          if (vars.contains(name))
+            str = std::to_string(vars.get(name));
+          else {
+            // function
+            while (!st.empty()) {
+              std::string op = st.top();
+              if (op == "sin" || op == "cos") {
+                outp = outp + op + " ";
+                st.pop();
+              } else
+                break;
+            }
+            st.push(name);
+            continue;
+          }
         }
 
         --intro;
@@ -316,7 +342,14 @@ double calc_polish(const std::string& post) {
     double y = st.top();
     st.pop();
 
-    if (c == '|') {
+    if (post[i] == 's' && post[i + 1] == 'i' && post[i + 2] == 'n') {
+      i += 2;
+      st.push(sin(y));
+      continue;
+    }
+
+    if (post[i] == 'c' && post[i + 1] == 'o' && post[i + 2] == 's') {
+      i += 2;
       st.push(cos(y));
       continue;
     }
@@ -333,8 +366,12 @@ double calc_polish(const std::string& post) {
       z = x * y;
     else if (c == '/')
       z = x / y;
-    else if (c == '^') {
+    else if (c == '^')
       z = pow(x, y);
+    else if (c == 'l' && post[i + 1] == 'o' && post[i + 2] == 'g') {
+      i += 2;
+      std::cout << "log(" << x << "," << y << ")" << std::endl;
+      z = log(y) / log(x);
     }
 
     st.push(z);
