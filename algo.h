@@ -30,7 +30,7 @@ bool isspace(char c) {
 }
 
 bool isname(char c) {
-  return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z');
+  return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || c == '_' || c == '#';
 }
 
 bool opening(std::string c) {
@@ -41,17 +41,9 @@ bool closing(std::string c) {
   return c == ")" || c == "]";
 }
 
-int get_prior(char op) {
-  switch (op) {
-    case '+':
-    case '-':
-      return 1;
-    case '*':
-    case '/':
-      return 2;
-    default:
-      return -1;
-  }
+void error(std::string str) {
+  std::cerr << str << std::endl;
+  exit(0);
 }
 
 double read_single(const std::string& str, int& pos) {
@@ -193,7 +185,8 @@ void trim_unary(std::string& s,
     if (isspace(c))
       continue;
 
-    if ((opening("" + s[i - 1]) || iskey(s[i - 1])) && (c == '+' || c == '-')) {
+    if ((opening(std::string(1, s[i - 1])) || iskey(s[i - 1])) &&
+        (c == '+' || c == '-')) {
       ans += "0";
       ans += c;
     } else
@@ -211,6 +204,7 @@ void to_polish(const std::string& inp,
 
   do {
     char c = inp[intro];
+    bool success = false;
     switch (c) {
       case '+':
       case '-':
@@ -231,7 +225,7 @@ void to_polish(const std::string& inp,
         while (!st.empty()) {
           std::string op = st.top();
           if (op == "^" || op == "*" || op == "/" || op == "sin" ||
-              op == "cos") {
+              op == "cos" || op == "log") {
             outp = outp + op + " ";
             st.pop();
           } else
@@ -242,35 +236,57 @@ void to_polish(const std::string& inp,
 
       case '(':
       case '[':
+		if (intro != 0 && '0' <= inp[intro - 1] && inp[intro - 1] <= '9')
+			error("got invalid bracket");
         st.push(std::string(1, c));
         break;
 
       case ')':
+        success = false;
         while (!st.empty()) {
-		  std::string op = st.top();
+          std::string op = st.top();
+          st.pop();
+          if (op == "(") {
+            success = true;
+            break;
+          } else
+            outp += op + " ";
+        }
+        if (!success)
+          error("broken bracket balance, need pair bracket for )");
+        break;
+
+      case ']':
+        success = false;
+        while (!st.empty()) {
+          std::string op = st.top();
+          st.pop();
+          if (op == "[") {
+            success = true;
+            break;
+          } else
+            outp += op + " ";
+        }
+        if (!success)
+          error("broken bracket balance, need pair bracket for ]");
+        break;
+
+      case ',':
+        while (!st.empty()) {
+          std::string op = st.top();
           st.pop();
           if (op == "(")
             break;
           else
             outp += op + " ";
         }
-        break;
-
-      case ']':
-        while (!st.empty()) {
-          std::string op = st.top();
-          st.pop();
-          if (op == "[")
-            break;
-          else
-            outp += op + " ";
-        }
+        st.push(std::string(1, '('));
         break;
 
       case '^':
         while (!st.empty()) {
           std::string op = st.top();
-          if (op == "sin" || op == "cos") {
+          if (op == "sin" || op == "cos" || op == "log") {
             outp = outp + op + " ";
             st.pop();
           } else
@@ -291,9 +307,12 @@ void to_polish(const std::string& inp,
             str = std::to_string(vars.get(name));
           else {
             // function
+            if (name != "sin" && name != "cos" && name != "log")
+              error("no such function/operator or variable " + name);
+
             while (!st.empty()) {
               std::string op = st.top();
-              if (op == "sin" || op == "cos") {
+              if (op == "sin" || op == "cos" || op == "log") {
                 outp = outp + op + " ";
                 st.pop();
               } else
@@ -313,8 +332,14 @@ void to_polish(const std::string& inp,
 
   } while (intro < inp.size());
 
+  if (intro < inp.size()) {
+    error("broken expression's tail");
+  }
+
   while (!st.empty()) {
     outp = outp + st.top();
+    if (st.empty())
+      error("wrong operand balance");
     st.pop();
   }
 }
@@ -323,7 +348,8 @@ double calc_polish(const std::string& post) {
   stack<double> st;
   double num = 0;
 
-  for (int i = 0; i < post.size(); i++) {
+  int i;
+  for (i = 0; i < post.size(); i++) {
     char c = post[i];
 
     if (c == ' ')
@@ -339,6 +365,14 @@ double calc_polish(const std::string& post) {
       continue;
     }
 
+    if (opening(std::string(1, c)) || closing(std::string(1, c))) {
+		error("bracket balance broken, need pair bracket for " + std::string(1, c));
+    }
+
+    if (st.empty()) {
+      error("not enought arguments given");
+    }
+
     double y = st.top();
     st.pop();
 
@@ -352,6 +386,10 @@ double calc_polish(const std::string& post) {
       i += 2;
       st.push(cos(y));
       continue;
+    }
+
+    if (st.empty()) {
+      error("not enoght arguments given for binary operation");
     }
 
     double x = st.top();
@@ -370,13 +408,19 @@ double calc_polish(const std::string& post) {
       z = pow(x, y);
     else if (c == 'l' && post[i + 1] == 'o' && post[i + 2] == 'g') {
       i += 2;
-      std::cout << "log(" << x << "," << y << ")" << std::endl;
       z = log(y) / log(x);
     }
 
     st.push(z);
   }
 
+  if (st.empty()) {
+    error("broken operand balance");
+  }
+
+  if (st.size() >= 2) {
+	  error("broken operand balance");
+  }
   return st.top();
 }
 
