@@ -41,5 +41,8 @@ void test_main() {
 
 int main() {
   test_main();
+#ifdef _WIN32
+  system("pause");
+#endif
   return 0;
 }
