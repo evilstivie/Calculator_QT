@@ -18,17 +18,37 @@ static MainWindow* mw;
 
 /* Styles */
 QString bg_style = "background-color:#030308;";
+
 QString header_style =
-    "font-weight:bold;color:#EAE4F6;font-size:30px;text-align:center;font-"
-    "family:Andale Mono;";
+    "font-weight:bold;color:#EAE4F6;"
+    "font-size:30px;text-align:center;"
+    "font-family:Andale Mono;";
+
 QString header_dis_style =
-    "color:#EAE4F6;font-size:20px;text-align:center;font-family:Andale Mono;";
+    "color:#EAE4F6;"
+    "font-size:20px;"
+    "text-align:center;"
+    "font-family:Andale Mono;";
+
 QString text_field_style =
-    "color:#ffffff;background-color:#242424;font-size:30px;border-radius:15px;";
+    "color:#ffffff;"
+    "background-color:#242424;"
+    "font-size:30px;"
+    "border-radius:15px;";
+
 QString btn_str_sub_style =
-    "background-color:#ff7700;font-weight:bold;color:#ffffff;font-size:20px;"
-    "border-radius:15px;margin:10px 150px 10px "
-    "150px;padding:20px;font-family:Andale Mono;";
+    "background-color:#ff7700;"
+    "font-weight:bold;"
+    "color:#ffffff;"
+    "font-size:20px;"
+    "border-radius:15px;"
+    "margin:10px 100px 10px 100px;"
+    "padding:20px;"
+    "font-family:Andale Mono;";
+
+QString var_input_style = "margin: 25px 10px 10px 50px;";
+
+QString var_header_style = "margin: 45px 0px 0px 40px;";
 
 QGridLayout* base_table;
 QGridLayout* main_grid;
@@ -36,6 +56,7 @@ QGridLayout* main_menu;
 QGridLayout* input_win;
 QTextEdit* result_output;
 QTextEdit* input_sample;
+QTextEdit *var_input_field;
 
 bool success = true;
 
@@ -54,7 +75,7 @@ MainWindow::MainWindow(QWidget* parent)
   QLabel* prog_header_main = new QLabel("String-calculator");
   prog_header_main->setStyleSheet(header_style);
   QLabel* prog_header_dis =
-      new QLabel("Fill input with string with standart functions and submit!");
+      new QLabel("Fill input with string with standart\nfunctions and submit!");
   prog_header_dis->setStyleSheet(header_dis_style);
 
   // Add headers
@@ -86,8 +107,26 @@ MainWindow::MainWindow(QWidget* parent)
   // Add submit string button
   main_menu->addWidget(btn_sub_string, 4, 0);
 
+  // Var field
+  QGridLayout *var_input = new QGridLayout;
+
+  // Var Header
+  QLabel *var_header = new QLabel("Set variables like 'a = 5' etc.");
+  var_header->setStyleSheet(header_dis_style + var_header_style);
+
+  // Add var header
+  var_input->addWidget(var_header, 0, 0);
+
+  // Var input filed
+  var_input_field = new QTextEdit;
+  var_input_field->setStyleSheet(text_field_style + var_input_style);
+
+  // Add var input filed
+  var_input->addWidget(var_input_field, 1, 0);
+
   // Add main_menu
   main_grid->addLayout(main_menu, 0, 0);
+  main_grid->addLayout(var_input, 0, 1);
 
   // Connect
   QObject::connect(btn_sub_string, SIGNAL(pressed()), this, SLOT(get_res()));
@@ -98,8 +137,50 @@ MainWindow::MainWindow(QWidget* parent)
     result_output->setFontFamily("Consolas");
     result_output->setText("[" + QTime::currentTime().toString() +
                            "] Error occured: " + QString::fromStdString(s));
-    success = false;
+    success = false; // FIXME log(2,16,,) cos(101,*pi)
   };
+}
+
+void fill(hashmap<std::string, double, string_hash> &vars) {
+    for (QString str: var_input_field->toPlainText().split("\n")) {
+        if (str.size() == 0)
+            continue;
+
+        str.replace(" ", "");
+
+        success = true;
+        int i = 0;
+        std::string name = get_word(str.toStdString(), i);
+        hashmap<std::string, double, string_hash> empty;
+        empty.put("e", EULER);
+        empty.put("pi", PI);
+        stack<std::string> lol;
+
+        if (i + 1 >= str.size()) {
+            error("Wrong variable (without declaration) \"" + name + "\"");
+            return;
+        }
+
+        std::string past = str.toStdString().substr(i + 1, str.size() - 1);
+        qDebug() << QString::fromStdString(name) << "=" << QString::fromStdString(past) << endl;
+
+        trim_unary(past, empty, lol);
+        if (!lol.empty()) {
+            error("Variables in variables!");
+            return;
+        }
+        if (!success) {
+            return;
+        }
+
+        std::string polish;
+        to_polish(past, polish, empty);
+        if (!success) {
+            return;
+        }
+
+        vars.put(name, calc_polish(polish));
+    }
 }
 
 void MainWindow::get_res() {
@@ -110,15 +191,20 @@ void MainWindow::get_res() {
   hashmap<std::string, double, string_hash> vars;
   vars.put("pi", M_PI);
   vars.put("e", M_E);
+  fill(vars);
+
+  if (!success) {
+      return;
+  }
+
   stack<std::string> new_vars;
 
   trim_unary(str, vars, new_vars);
   if (!success) {
-    qDebug() << new_vars.size() << endl;
     while (!new_vars.empty()) {
       QString str = QString::fromStdString(new_vars.top());
       new_vars.pop();
-      qDebug() << "Variable " << str << endl;
+      result_output->setText(result_output->toPlainText() + "\n" + str + "=?");
     }
     return;
   }

@@ -187,6 +187,11 @@ void put_brackets(std::string& s, std::string& ans) {
     if (isspace(c))
       continue;
 
+    if (s[i - 1] == ',' && (s[i] == '*' || s[i] == '/' || s[i] == '^' || s[i] == ',')) {
+        error("Wrong expression near \"" + std::string(1, s[i]) + "\" " + std::to_string(i));
+        return;
+    }
+
     int end = 0;
     if ((opening(std::string(1, s[i - 1])) || iskey(s[i - 1]) || s[i - 1] == ',') &&
         (c == '+' || c == '-')) {
@@ -256,6 +261,8 @@ void trim_unary(std::string& s,
       error("Empty string");
       return;
   }
+
+  bool exact = true;
   std::string first;
   for (int i = 0; i < s.size(); i++) {
     int before = i;
@@ -267,8 +274,10 @@ void trim_unary(std::string& s,
 
     if (!vars.contains(name)) {
       first += name;
-      if (name != "sin" && name != "cos" && name != "log")
+      if (name != "sin" && name != "cos" && name != "log") {
         st.push(name);
+        exact = false;
+      }
       --i;
       continue;
     }
@@ -294,7 +303,10 @@ void trim_unary(std::string& s,
     return;
 
   s = ans;
-  qDebug() << "We have pre-proccessed = " << QString::fromStdString(s) << endl;
+  if (!exact) {
+    error("Unknown variables");
+    return;
+  }
 }
 
 void to_polish(const std::string& inp,
@@ -329,9 +341,11 @@ void to_polish(const std::string& inp,
               op == "cos" || op == "log") {
             outp = outp + op + " ";
             st.pop();
+            success = true;
           } else
             break;
         }
+
         st.push(std::string(1, c));
         break;
 
@@ -356,6 +370,7 @@ void to_polish(const std::string& inp,
           error("broken bracket balance, need pair bracket for )");
           return;
         }
+
         break;
 
       case ']':
@@ -381,6 +396,17 @@ void to_polish(const std::string& inp,
           std::string op = st.top();
           st.pop();
           if (op == "(") {
+
+            if (st.empty()) {
+                error("Wrong expression near " + op);
+                return;
+            }
+
+            if (st.top() != "log") {
+                error("Found \",\" for unary " + st.top());
+                return;
+            }
+
             success = true;
             break;
           } else
@@ -424,8 +450,6 @@ void to_polish(const std::string& inp,
           std::string name = get_word(inp, intro);
           int stands = intro;
           if (stands - was <= 0) {
-            qDebug() << "lol " << inp[was] << ' ' << inp[was - 1] << endl;
-            qDebug() << QString::fromStdString(inp) << endl;
             error("Wrong expression near \"" + std::string(1, inp[was]) + "\"" +
                   " (at " + std::to_string(was) + ") ");
             return;
