@@ -7,61 +7,52 @@
 const int TABLE_SIZE = 1e7 + 33;
 
 template <typename K, typename V>
-class HashNode {
+class hashnode {
  public:
-  HashNode(const K& key, const V& value) : key(key), value(value), next(NULL) {}
-
+  hashnode(const K& key, const V& value)
+      : key(key), value(value), next(nullptr) {}
   K getKey() const { return key; }
-
   V getValue() const { return value; }
-
-  void setValue(V value) { HashNode::value = value; }
-
-  HashNode* getNext() const { return next; }
-
-  void setNext(HashNode* next) { HashNode::next = next; }
+  void setValue(V value) { hashnode::value = value; }
+  hashnode* getNext() const { return next; }
+  void setNext(hashnode* next) { hashnode::next = next; }
 
  private:
   K key;
   V value;
-  HashNode* next;
+  hashnode* next;
 };
 
 template <typename K>
-struct KeyHash {
+struct keyhash {
   unsigned long operator()(const K& key) const {
     return reinterpret_cast<unsigned long>(key) % TABLE_SIZE;
   }
 };
 
-template <typename K, typename V, typename F = KeyHash<K>>
-class HashMap {
+template <typename K, typename V, typename F = keyhash<K>>
+class hashmap {
  public:
-  HashMap() {
-    // construct zero initialized hash table of size
-    table = new HashNode<K, V>*[TABLE_SIZE]();
-  }
+  hashmap() { table = new hashnode<K, V>*[TABLE_SIZE](); }
 
-  ~HashMap() {
-    // destroy all buckets one by one
+  ~hashmap() {
     for (int i = 0; i < TABLE_SIZE; ++i) {
-      HashNode<K, V>* entry = table[i];
-      while (entry != NULL) {
-        HashNode<K, V>* prev = entry;
+      hashnode<K, V>* entry = table[i];
+      while (entry != nullptr) {
+        hashnode<K, V>* prev = entry;
         entry = entry->getNext();
         delete prev;
       }
-      table[i] = NULL;
+      table[i] = nullptr;
     }
-    // destroy the hash table
     delete[] table;
   }
 
   bool get(const K& key, V& value) {
     unsigned long hashValue = hashFunc(key);
-    HashNode<K, V>* entry = table[hashValue];
+    hashnode<K, V>* entry = table[hashValue];
 
-    while (entry != NULL) {
+    while (entry != nullptr) {
       if (entry->getKey() == key) {
         value = entry->getValue();
         return true;
@@ -73,9 +64,9 @@ class HashMap {
 
   bool contains(const K& key) {
     unsigned long hashValue = hashFunc(key);
-    HashNode<K, V>* entry = table[hashValue];
+    hashnode<K, V>* entry = table[hashValue];
 
-    while (entry != NULL) {
+    while (entry != nullptr) {
       if (entry->getKey() == key) {
         return true;
       }
@@ -88,9 +79,9 @@ class HashMap {
   V get(const K& key) {
     unsigned long hashValue = hashFunc(key);
 
-    HashNode<K, V>* entry = table[hashValue];
+    hashnode<K, V>* entry = table[hashValue];
 
-    while (entry != NULL) {
+    while (entry != nullptr) {
       if (entry->getKey() == key) {
         return entry->getValue();
       }
@@ -102,44 +93,40 @@ class HashMap {
 
   void put(const K& key, const V& value) {
     unsigned long hashValue = hashFunc(key);
-    HashNode<K, V>* prev = NULL;
-    HashNode<K, V>* entry = table[hashValue];
+    hashnode<K, V>* prev = nullptr;
+    hashnode<K, V>* entry = table[hashValue];
 
-    while (entry != NULL && entry->getKey() != key) {
+    while (entry != nullptr && entry->getKey() != key) {
       prev = entry;
       entry = entry->getNext();
     }
 
-    if (entry == NULL) {
-      entry = new HashNode<K, V>(key, value);
-      if (prev == NULL) {
-        // insert as first bucket
+    if (entry == nullptr) {
+      entry = new hashnode<K, V>(key, value);
+      if (prev == nullptr) {
         table[hashValue] = entry;
       } else {
         prev->setNext(entry);
       }
     } else {
-      // just update the value
       entry->setValue(value);
     }
   }
 
   void remove(const K& key) {
     unsigned long hashValue = hashFunc(key);
-    HashNode<K, V>* prev = NULL;
-    HashNode<K, V>* entry = table[hashValue];
+    hashnode<K, V>* prev = nullptr;
+    hashnode<K, V>* entry = table[hashValue];
 
-    while (entry != NULL && entry->getKey() != key) {
+    while (entry != nullptr && entry->getKey() != key) {
       prev = entry;
       entry = entry->getNext();
     }
 
-    if (entry == NULL) {
-      // key not found
+    if (entry == nullptr) {
       return;
     } else {
-      if (prev == NULL) {
-        // remove first bucket of the list
+      if (prev == nullptr) {
         table[hashValue] = entry->getNext();
       } else {
         prev->setNext(entry->getNext());
@@ -149,8 +136,7 @@ class HashMap {
   }
 
  private:
-  // hash table
-  HashNode<K, V>** table;
+  hashnode<K, V>** table;
   F hashFunc;
 };
 

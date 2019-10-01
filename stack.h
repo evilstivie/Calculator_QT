@@ -1,7 +1,7 @@
 #pragma once
 #ifndef _CALCSTACK_H
 #define _CALCSTACK_H
-#include <cassert>
+#include <cmath>
 #include <iostream>
 
 template <typename T>

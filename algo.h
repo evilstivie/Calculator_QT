@@ -1,18 +1,22 @@
 #ifndef _CALCALGO_H
+#define _CALCSMATH_H
 #define _CALCALGO_H
-#define _USE_MATH_DEFINES
 
-#include <math.h>
+#include <QDebug>
+#include <functional>
 #include <string>
 #include "hashmap.h"
+#include "mainwindow.h"
+#include "smath.h"
 #include "stack.h"
 
 const double EPS = 1e-8;
 const double PI = 3.14159265358979323846;
 const double EULER = 2.7182818284590452353602874713527;
-const double INF = 1e20;
+const double INF = std::numeric_limits<double>::max();
 
 const char OPERATIONS[5] = {'+', '-', '*', '/', '^'};
+std::function<void(std::string)> error;
 
 bool isdigit(char c) {
   return '0' <= c && c <= '9';
@@ -30,8 +34,7 @@ bool isspace(char c) {
 }
 
 bool isname(char c) {
-  return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || c == '_' ||
-         c == '#';
+  return ('a' <= c && c <= 'z') || ('A' <= c && c <= 'Z') || c == '_';
 }
 
 bool opening(std::string c) {
@@ -40,14 +43,6 @@ bool opening(std::string c) {
 
 bool closing(std::string c) {
   return c == ")" || c == "]";
-}
-
-void error(std::string str) {
-  std::cerr << str << std::endl;
-#ifdef _WIN32
-  system("pause");
-#endif
-  exit(0);
 }
 
 double read_single(const std::string& str, int& pos) {
@@ -64,9 +59,16 @@ double read_single(const std::string& str, int& pos) {
 
   int prev = pos;
   while (pos < str.size() && isdigit(c)) {
-    d = d * 10.0 + (c - '0');
-    c = str[++pos];
+    d = d * 10.0 + int(c - '0');
+    if (d >= INF) {
+        error("Overflowing number given");
+        return INF;
+    }
+
+    if (++pos < str.size())
+      c = str[pos];
   }
+
   int post = pos;
   if ((str[start] == '-' || str[start] == '+') && post == prev) {
     pos = start;
@@ -97,7 +99,13 @@ double read_double(const std::string& str, int& pos) {
     int now = pos;
     if (now - prev == 0) {
       pos = 0;
+      error("Broken value given");
       return INF;
+    }
+
+    if (d * pow(10, man) > INF) {
+        error("Overflowing number given");
+        return NAN;
     }
 
     return d * pow(10, man);
@@ -108,6 +116,7 @@ double read_double(const std::string& str, int& pos) {
   ++pos;
   if (pos >= str.size()) {
     pos = 0;
+    error("Broken value given");
     return INF;
   }
 
@@ -126,6 +135,7 @@ double read_double(const std::string& str, int& pos) {
   int nnow = pos;
   if (pprev == nnow) {
     pos = 0;
+    error("Broken value given");
     return INF;
   }
 
@@ -133,6 +143,12 @@ double read_double(const std::string& str, int& pos) {
     ++pos;
     double v = read_single(str, pos);
     return d * pow(10, v);
+  }
+
+  if (pos < str.size() && str[pos] == '.') {
+    error("Broken value given");
+    pos = 0;
+    return INF;
   }
 
   return d;
@@ -156,52 +172,27 @@ std::string get_word(const std::string& s, int& pos) {
   return res;
 }
 
-void trim_unary(std::string& s,
-                HashMap<std::string, double, string_hash>& vars) {
-  std::string first;
-  for (int i = 0; i < s.size(); i++) {
-    int before = i;
-    std::string name = get_word(s, i);
-    if (i == before) {
-      first += s[i];
-      continue;
-    }
-
-    if (!vars.contains(name)) {
-      first += name;
-      --i;
-      continue;
-    }
-
-    if (i != before) {
-      first += std::to_string(vars.get(name));
-      --i;
-    } else {
-      first += s[i];
-    }
-  }
-  s = first;
-  s = "(" + s + ")";
-  std::string ans;
-  ans += '(';
-
+void put_brackets(std::string& s, std::string& ans) {
   bool* to_close = new bool[s.size() + 1];
   for (int i = 0; i < s.size() + 1; i++)
     to_close[i] = false;
-  int endy = 0;
 
+  int end_brackets = 0;
   for (int i = 1; i < s.size(); i++) {
     char c = s[i];
+
     if (to_close[i])
       ans += std::string(1, ')');
+
     if (isspace(c))
       continue;
 
     int end = 0;
-    if ((opening(std::string(1, s[i - 1])) || iskey(s[i - 1])) &&
+    if ((opening(std::string(1, s[i - 1])) || iskey(s[i - 1]) || s[i - 1] == ',') &&
         (c == '+' || c == '-')) {
       int old = i;
       double d = read_double(s, i);
+
       int diff = i - old;
       if (diff <= 0) {
         i = old;
@@ -216,16 +207,15 @@ void trim_unary(std::string& s,
 
           if (balance == 0) {
             if (j >= s.size())
-              endy++;
+              end_brackets++;
             else
               to_close[j] = true;
             break;
           }
         }
 
-        if (balance > 0) {
-          endy += balance;
-        }
+        if (balance > 0)
+          end_brackets += balance;
 
         ans += "(0";
         ans += c;
@@ -234,21 +224,82 @@ void trim_unary(std::string& s,
 
       ans += "(0";
       ans += c;
-      ans += std::to_string(abs(d));
+
+      if (d < INF)
+        ans += std::to_string(abs(d));
       ans += ")";
       --i;
-    } else
+    } else {
       ans += c;
+    }
   }
 
-  for (int i = 0; i < endy; i++)
+  for (int i = 0; i < end_brackets; i++)
     ans += ")";
+}
+
+bool check_brackets(std::string& ans) {
+  for (int i = 0; i < ans.size() - 1; i++) {
+    if (opening(std::string(1, ans[i])) &&
+        closing(std::string(1, ans[i + 1]))) {
+      error("Empty brackets found");
+      return false;
+    }
+  }
+  return true;
+}
+
+void trim_unary(std::string& s,
+                hashmap<std::string, double, string_hash>& vars,
+                stack<std::string>& st) {
+  if (s.empty()) {
+      error("Empty string");
+      return;
+  }
+  std::string first;
+  for (int i = 0; i < s.size(); i++) {
+    int before = i;
+    std::string name = get_word(s, i);
+    if (i == before) {
+      first += s[i];
+      continue;
+    }
+
+    if (!vars.contains(name)) {
+      first += name;
+      if (name != "sin" && name != "cos" && name != "log")
+        st.push(name);
+      --i;
+      continue;
+    }
+
+    if (i != before) {
+      if (isdigit(s[before - 1])) {
+        error("Ommited multiplication sign before constant");
+        return;
+      }
+      first += std::to_string(vars.get(name));
+      --i;
+    } else {
+      first += s[i];
+    }
+  }
+
+  s = "(" + first + ")";
+  std::string ans;
+  ans = "(";
+
+  put_brackets(s, ans);
+  if (!check_brackets(ans))
+    return;
+
   s = ans;
+  qDebug() << "We have pre-proccessed = " << QString::fromStdString(s) << endl;
 }
 
 void to_polish(const std::string& inp,
                std::string& outp,
-               HashMap<std::string, double, string_hash>& vars) {
+               hashmap<std::string, double, string_hash>& vars) {
   int intro = 0;
   stack<std::string> st;
 
@@ -286,8 +337,6 @@ void to_polish(const std::string& inp,
 
       case '(':
       case '[':
-        if (intro != 0 && '0' <= inp[intro - 1] && inp[intro - 1] <= '9')
-          error("got invalid bracket");
         st.push(std::string(1, c));
         break;
 
@@ -302,8 +351,11 @@ void to_polish(const std::string& inp,
           } else
             outp += op + " ";
         }
-        if (!success)
+
+        if (!success) {
           error("broken bracket balance, need pair bracket for )");
+          return;
+        }
         break;
 
       case ']':
@@ -317,19 +369,29 @@ void to_polish(const std::string& inp,
           } else
             outp += op + " ";
         }
-        if (!success)
+        if (!success) {
           error("broken bracket balance, need pair bracket for ]");
+          return;
+        }
         break;
 
       case ',':
+        success = false;
         while (!st.empty()) {
           std::string op = st.top();
           st.pop();
-          if (op == "(")
+          if (op == "(") {
+            success = true;
             break;
-          else
+          } else
             outp += op + " ";
         }
+
+        if (!success) {
+          error("missing ( for binary function");
+          return;
+        }
+
         st.push(std::string(1, '('));
         break;
 
@@ -349,16 +411,39 @@ void to_polish(const std::string& inp,
         std::string str;
         if (isdigit(c)) {
           // number
+          int was = intro;
           str = std::to_string(read_double(inp, intro));
+          int stands = intro;
+          if (stands - was <= 0) {
+            error("Broken value given");
+            return;
+          }
         } else {
           // variable
+          int was = intro;
           std::string name = get_word(inp, intro);
+          int stands = intro;
+          if (stands - was <= 0) {
+            qDebug() << "lol " << inp[was] << ' ' << inp[was - 1] << endl;
+            qDebug() << QString::fromStdString(inp) << endl;
+            error("Wrong expression near \"" + std::string(1, inp[was]) + "\"" +
+                  " (at " + std::to_string(was) + ") ");
+            return;
+          }
+
           if (vars.contains(name))
             str = std::to_string(vars.get(name));
           else {
             // function
-            if (name != "sin" && name != "cos" && name != "log")
+            if (name != "sin" && name != "cos" && name != "log") {
               error("no such function/operator or variable " + name);
+              return;
+            }
+
+            if (inp[intro] != '(') {
+              error("Illegal use of function. Expected ( after " + name);
+              return;
+            }
 
             while (!st.empty()) {
               std::string op = st.top();
@@ -382,14 +467,8 @@ void to_polish(const std::string& inp,
 
   } while (intro < inp.size());
 
-  if (intro < inp.size()) {
-    error("broken expression's tail");
-  }
-
   while (!st.empty()) {
     outp = outp + st.top();
-    if (st.empty())
-      error("wrong operand balance");
     st.pop();
   }
 }
@@ -418,10 +497,12 @@ double calc_polish(const std::string& post) {
     if (opening(std::string(1, c)) || closing(std::string(1, c))) {
       error("bracket balance broken, need pair bracket for " +
             std::string(1, c));
+      return NAN;
     }
 
     if (st.empty()) {
-      error("not enought arguments given");
+      error("not enough arguments given for operation");
+      return NAN;
     }
 
     double y = st.top();
@@ -429,20 +510,19 @@ double calc_polish(const std::string& post) {
 
     if (post[i] == 's' && post[i + 1] == 'i' && post[i + 2] == 'n') {
       i += 2;
-      std::cout << "sin(" << y << ") = " << sin(y) << std::endl;
       st.push(sin(y));
       continue;
     }
 
     if (post[i] == 'c' && post[i + 1] == 'o' && post[i + 2] == 's') {
       i += 2;
-      std::cout << "cos(" << y << ") = " << cos(y) << std::endl;
       st.push(cos(y));
       continue;
     }
 
     if (st.empty()) {
-      error("not enoght arguments given for binary operation");
+      error("not enough arguments given for binary operation");
+      return NAN;
     }
 
     double x = st.top();
@@ -455,14 +535,16 @@ double calc_polish(const std::string& post) {
       z = x - y;
     else if (c == '*')
       z = x * y;
-    else if (c == '/')
+    else if (c == '/') {
+      if (abs(y) <= EPS) {
+        error("Division by zero");
+        return NAN;
+      }
       z = x / y;
-    else if (c == '^')
+    } else if (c == '^')
       z = pow(x, y);
     else if (c == 'l' && post[i + 1] == 'o' && post[i + 2] == 'g') {
       i += 2;
-      std::cout << "log(" << x << "," << y << ") = " << (log(y) / log(x))
-                << std::endl;
       z = log(y) / log(x);
     }
 
@@ -471,10 +553,12 @@ double calc_polish(const std::string& post) {
 
   if (st.empty()) {
     error("broken operand balance");
+    return NAN;
   }
 
   if (st.size() >= 2) {
     error("broken operand balance");
+    return NAN;
   }
   return st.top();
 }
