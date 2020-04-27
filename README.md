@@ -1,15 +1,15 @@
-# string-calculator
+# Calculator
 School assigment
 
-Trello: https://trello.com/b/DeVp3N03/string-calculator
+This calculator based on analyzing the string of mathematical expressions by reverse polish notation (RPN). (GUI: QT.c++)
 
 ## Features
-- Float values (1.3e10 etc.)
-- Operations + - * / ^
-- 2 types of brackets: () and []
-- Functions: sin(...), cos(...) // TODO: log(..., ...)
-- Constants like e, pi
-- User variables
+* Types: int64, float (15, 0.5, 1.3e10 etc.)
+* Arythmetical operations: + - * / ^
+* 2 types of brackets: () and []
+* Mathematical functions: sin(f(x)), cos(f(x)), log(g(x), f(x))
+* Constants: eps, PI
+* User variables
 
 ## Team
-Balanina, Akhundov
+SN. Balanina, AN. Akhundov
